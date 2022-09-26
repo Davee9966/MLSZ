@@ -9,20 +9,17 @@ namespace MLSZ.Entities
         public int Id { get; set; }
 
         public string Username { get; set; } = string.Empty;
-        public byte[]? PasswordHash { get; set; }
-        public byte[]? PasswordSalt { get; set; }
+        public byte[] PasswordHash { get; set; }
+        public byte[] PasswordSalt { get; set; }
         public string RefreshToken { get; set; } = string.Empty;
         public DateTime? TokenCreated { get; set; }
         public DateTime? TokenExpires { get; set; }
 
-        public User(string? uname)
+        public User(string? uname = null)
         {
-            _ = uname ?? throw new ArgumentNullException(uname);
-            Username = uname;
-        }
-
-        public User()
-        {
+            //_ = uname ?? throw new ArgumentNullException(uname);
+            if (uname != null) Username = uname;
+            else Username = String.Empty;
         }
     }
 }
