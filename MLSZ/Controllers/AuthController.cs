@@ -34,11 +34,11 @@ namespace MLSZ.Controllers
         [HttpPost("register")]
         public async Task<ActionResult<User>> Register(UserDto request)
         {
-            CreatePasswordHash(request.Password, out byte[] passwordHash, out byte[] passwordSalt);
+            var temp = CreatePasswordHash(request.Password);
 
             user.Username = request.Username;
-            user.PasswordHash = passwordHash;
-            user.PasswordSalt = passwordSalt;
+            user.PasswordHash = temp.Item1;
+            user.PasswordSalt = temp.Item2;
 
             return Ok(user);
         }
@@ -134,12 +134,11 @@ namespace MLSZ.Controllers
             return jwt;
         }
 
-        public void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)
+        protected (byte[], byte[]) CreatePasswordHash(string password)
         {
             using (var hmac = new HMACSHA512())
             {
-                passwordSalt = hmac.Key;
-                passwordHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
+                return (hmac.Key, hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password)));
             }
         }
 
