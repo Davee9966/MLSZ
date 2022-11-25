@@ -6,6 +6,8 @@ using MLSZ.Entities;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text.Json;
+using static MLSZ.Shared.Shared;
 
 namespace MLSZ.Controllers
 {
@@ -13,21 +15,22 @@ namespace MLSZ.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        public static User user = new User();
+        public User user = new User();
         private readonly IConfiguration _configuration;
         private readonly IUserService _userService;
         private readonly MlszContext _context;
 
-        public AuthController(IConfiguration configuration, IUserService userService)
+        public AuthController(IConfiguration configuration, IUserService userService, MlszContext context)
         {
             _configuration = configuration;
             _userService = userService;
+            _context = context;
         }
 
         [HttpGet, Authorize]
         public ActionResult<string> GetMe()
         {
-            var userName = _userService.GetMyName();
+            var userName = _userService.GetMyEmail();
             return Ok(userName);
         }
 
@@ -36,9 +39,12 @@ namespace MLSZ.Controllers
         {
             var temp = CreatePasswordHash(request.Password);
 
-            user.Username = request.Username;
-            user.PasswordHash = temp.Item1;
-            user.PasswordSalt = temp.Item2;
+            this.user.Email = request.Email;
+            this.user.PwHash = temp.Item2;
+            this.user.PwSalt = temp.Item1;
+
+            _context.Users.Add(user);
+            _context.SaveChanges();
 
             return Ok(user);
         }
@@ -46,22 +52,27 @@ namespace MLSZ.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<string>> Login(UserDto request)
         {
-            if (user.Username != request.Username)
+
+            user = _context.Users.FirstOrDefault(user => user.Email == request.Email);
+            if (user == null)
             {
                 return BadRequest("User not found.");
             }
 
-            if (!VerifyPasswordHash(request.Password, user.PasswordHash, user.PasswordSalt))
+            if (!VerifyPasswordHash(request.Password, user.PwHash, user.PwSalt))
             {
-                return BadRequest("Wrong password.");
+                //foreach (var item in user.PwHash) Console.Write(item);
+                //Console.WriteLine(BitConverter.ToString(user.PwHash));
+                return BadRequest("Wrong credentials.");
             }
 
             string token = CreateToken(user);
 
             var refreshToken = GenerateRefreshToken();
             SetRefreshToken(refreshToken);
-
-            return Ok(token);
+            var resp = JsonSerializer.Serialize(token);
+            Response.StatusCode = 200;
+            return resp;
         }
 
         [HttpPost("refresh-token")]
@@ -115,7 +126,7 @@ namespace MLSZ.Controllers
         {
             List<Claim> claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Name, user.Name),
                 new Claim(ClaimTypes.Role, "Admin")
             };
 
@@ -134,13 +145,7 @@ namespace MLSZ.Controllers
             return jwt;
         }
 
-        protected (byte[], byte[]) CreatePasswordHash(string password)
-        {
-            using (var hmac = new HMACSHA512())
-            {
-                return (hmac.Key, hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password)));
-            }
-        }
+        
 
         private bool VerifyPasswordHash(string password, byte[] passwordHash, byte[] passwordSalt)
         {

@@ -1,12 +1,12 @@
 global using MLSZ.Services.UserService;
 global using Microsoft.EntityFrameworkCore;
-global using Pomelo.EntityFrameworkCore.MySql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MLSZ.Data;
 using Swashbuckle.AspNetCore.Filters;
 using System.Text;
+using MLSZ.Services.MailService;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,10 +14,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddTransient<IEmailService, EmailService>();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddDbContext<MlszContext>(
             dbContextOptions => dbContextOptions
-                .UseMySql(builder.Configuration.GetConnectionString("MlszContext"), new MariaDbServerVersion(new Version(10,5,15)))
+                .UseSqlServer(builder.Configuration.GetConnectionString("MlszContext"))
                 // The following three options help with debugging, but should
                 // be changed or removed for production.
                 .LogTo(Console.WriteLine, LogLevel.Information)
@@ -26,6 +30,7 @@ builder.Services.AddDbContext<MlszContext>(
         );
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -56,6 +61,7 @@ builder.Services.AddCors(options => options.AddPolicy(name: "NgOrigins",
     {
         policy.WithOrigins("http://localhost:4200").AllowAnyMethod().AllowAnyHeader();
         policy.WithOrigins("pi").AllowAnyMethod().AllowAnyHeader();
+        policy.WithOrigins("localhost").AllowAnyMethod().AllowAnyHeader();
     }));
 
 var app = builder.Build();

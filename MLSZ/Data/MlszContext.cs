@@ -12,20 +12,11 @@ namespace MLSZ.Data
         {
         }
 
-        public DbSet<User> User { get; set; }
-
+        public DbSet<User> Users { get; set; }
+        public DbSet<Field> Fields { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<User>(et => {
-                et.HasKey(e => e.Id);
-                et.Property(e => e.Username).IsRequired();
-                et.Property(e => e.PasswordHash).IsRequired();
-            });
-
-            modelBuilder.Entity<User>().HasData(
-                new User("admin")
-                );
         }
     }
 }
